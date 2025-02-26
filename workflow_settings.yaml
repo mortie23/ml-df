@@ -1,0 +1,5 @@
+defaultProject: prj-xyz-dev-nfl-0
+defaultLocation: australia-southeast1
+defaultDataset: cur
+defaultAssertionDataset: ast
+dataformCoreVersion: 3.0.0
