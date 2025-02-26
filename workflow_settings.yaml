@@ -3,3 +3,8 @@ defaultLocation: australia-southeast1
 defaultDataset: cur
 defaultAssertionDataset: ast
 dataformCoreVersion: 3.0.0
+vars:
+  env: dev
+  layer_raw: raw
+  layer_cur: cur
+  bucket_raw: bkt-xyz-<env>-nfl-raw-0
