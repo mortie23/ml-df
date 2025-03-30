@@ -1,0 +1,52 @@
+config {
+  type: "incremental",
+  description: "NFL game touchdown predictions",
+  uniqueKey: ["game_team_id"],
+  columns: {
+    game_team_id: 'Unique identifier for game and team combination',
+    predicted_touchdown_probability: 'Predicted probability of scoring a touchdown',
+    created_timestamp: 'Created timestamp'
+  },
+  schema: dataform.projectConfig.vars.layer_cur
+}
+
+with batched_games as (
+    select
+      ifnull(
+        array_agg(
+          json_object(
+            'game_team_id', game_team_id,
+            'total_yards', total_yards,
+            'rushing_yards', rushing_yards,
+            'passing_yards', net_passing_yards,
+            'redzone_visits', redzone_visits,
+            'time_of_possesion', time_of_possesion
+          )
+          ignore nulls
+        ), [[]]
+      ) as batch
+    from
+      ${ref("game_stats")}
+      ${when(incremental(), `where game_team_id not in (select distinct game_team_id from ${self()})` )}
+)
+, predictions as (
+    select
+      ${ref("nfltouchdown_cloudrun")}(parse_json(to_json_string(batch))) as predictions_json
+    from
+      batched_games
+)
+, unnested_predictions as (
+    select
+        json_value(prediction, '$.game_team_id') as game_team_id
+      , json_value(prediction, '$.predictions[0]') as prob_no_touchdown
+      , json_value(prediction, '$.predictions[1]') as prob_touchdown
+    from
+      predictions
+    , unnest(json_query_array(predictions_json, '$')) as prediction
+)
+select
+    cast(up.game_team_id as INT64) as game_team_id
+  , cast(up.prob_touchdown as FLOAT64) as predicted_touchdown_probability
+  , current_timestamp() as created_timestamp
+from
+  unnested_predictions up
