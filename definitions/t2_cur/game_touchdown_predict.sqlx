@@ -37,7 +37,7 @@ with batched_games as (
 , unnested_predictions as (
     select
         json_value(prediction, '$.game_team_id') as game_team_id
-      , json_value(prediction, '$.predictions[0]') as predicted_touchdowns
+      , json_value(prediction, '$.prediction') as predicted_touchdowns
     from
       predictions
     , unnest(json_query_array(predictions_json, '$')) as prediction
