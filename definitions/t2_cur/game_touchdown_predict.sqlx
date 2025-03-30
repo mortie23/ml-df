@@ -4,7 +4,7 @@ config {
   uniqueKey: ["game_team_id"],
   columns: {
     game_team_id: 'Unique identifier for game and team combination',
-    predicted_touchdown_probability: 'Predicted probability of scoring a touchdown',
+    predicted_touchdowns: 'Predicted number of touchdowns',
     created_timestamp: 'Created timestamp'
   },
   schema: dataform.projectConfig.vars.layer_cur
@@ -16,14 +16,13 @@ with batched_games as (
         array_agg(
           json_object(
             'game_team_id', game_team_id,
+            'total_first_downs', total_first_downs,
             'total_yards', total_yards,
-            'rushing_yards', rushing_yards,
-            'passing_yards', net_passing_yards,
-            'redzone_visits', redzone_visits,
-            'time_of_possesion', time_of_possesion
+            'interceptions', interceptions,
+            'punts', punts
           )
           ignore nulls
-        ), [[]]
+        ), [json_object()]
       ) as batch
     from
       ${ref("game_stats")}
@@ -38,15 +37,14 @@ with batched_games as (
 , unnested_predictions as (
     select
         json_value(prediction, '$.game_team_id') as game_team_id
-      , json_value(prediction, '$.predictions[0]') as prob_no_touchdown
-      , json_value(prediction, '$.predictions[1]') as prob_touchdown
+      , json_value(prediction, '$.predictions[0]') as predicted_touchdowns
     from
       predictions
     , unnest(json_query_array(predictions_json, '$')) as prediction
 )
 select
     cast(up.game_team_id as INT64) as game_team_id
-  , cast(up.prob_touchdown as FLOAT64) as predicted_touchdown_probability
+  , cast(up.predicted_touchdowns as FLOAT64) as predicted_touchdowns
   , current_timestamp() as created_timestamp
 from
   unnested_predictions up
